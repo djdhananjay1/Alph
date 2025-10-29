@@ -310,6 +310,13 @@ export class ConfigureCommand {
       }
     }
 
+    if (!this.options.interactive && !this.options.dryRun && this.options.transport === 'stdio') {
+      const hasCommand = typeof this.options.command === 'string' && this.options.command.trim().length > 0;
+      if (!hasCommand) {
+        throw new Error('--command is required when using --transport stdio in non-interactive mode');
+      }
+    }
+
     // Validate URL only when provided and transport expects a URL
     if (this.options.mcpServerEndpoint && (this.options.transport === 'http' || this.options.transport === 'sse')) {
       try {

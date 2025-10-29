@@ -36,13 +36,18 @@ interface ProviderStatus {
 }
 
 export async function executeStatusCommand(options: StatusCommandOptions = {}): Promise<void> {
-  const detectionResults = await defaultRegistry.detectAvailableAgents();
+  const projectDir = options.dir && options.dir.trim() ? options.dir.trim() : undefined;
+  const detectionResults = await defaultRegistry.detectAvailableAgents(undefined, projectDir);
   const agentFilter = (options.agent || '').toLowerCase();
   const filtered = agentFilter
     ? detectionResults.filter(d => d.provider.name.toLowerCase().includes(agentFilter))
     : detectionResults;
 
-  const providerStatuses: ProviderStatus[] = await buildProviderStatuses(filtered, options);
+  const normalizedOptions: StatusCommandOptions = {
+    ...options,
+    ...(projectDir ? { dir: projectDir } : {})
+  };
+  const providerStatuses: ProviderStatus[] = await buildProviderStatuses(filtered, normalizedOptions);
   const format = (options.format || 'list');
   if (format === 'json') {
     ui.info(JSON.stringify(providerStatuses, null, 2));

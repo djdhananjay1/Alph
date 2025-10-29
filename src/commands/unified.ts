@@ -8,7 +8,7 @@
 
 import { Command } from 'commander';
 import { readFileSync } from 'fs';
-import { join } from 'path';
+import { resolvePackagePath } from '../utils/packageRoot';
 import { executeConfigureCommand, ConfigureCommandOptions } from './configure';
 import { executeStatusCommand } from './status';
 import { executeRemoveCommand, RemoveCommandOptions } from './remove';
@@ -41,7 +41,7 @@ export class UnifiedCommand {
    * Sets up subcommands and handles root command behavior
    */
   private async setupCommands(): Promise<void> {
-    const pkgPath = join(__dirname, '../../package.json');
+    const pkgPath = resolvePackagePath('package.json');
     const packageJson = JSON.parse(readFileSync(pkgPath, 'utf8'));
     this.program
       .name('alph')
@@ -64,7 +64,7 @@ export class UnifiedCommand {
       .command('setup')
       .description('🔧 Configure agents with an MCP server')
       .option('--mcp-server-endpoint <url>', 'MCP server endpoint URL')
-      .option('--bearer [token]', 'Authentication token for Authorization (optional, will be redacted in output)')
+      .option('--bearer <token>', 'Authentication token for Authorization (optional, will be redacted in output)')
       .option('--transport <type>', 'Transport protocol (http|sse|stdio)')
       .option('--command <cmd>', 'Command to execute for stdio transport')
       .option('--cwd <path>', 'Working directory for command execution')
@@ -101,6 +101,19 @@ export class UnifiedCommand {
         }
 
         const forwarded = __normalizeConfigureForwarding(opts as any, (process && process.argv) ? process.argv.slice(2) : []);
+        const parseKeyValuePairs = (input: string): Record<string, string> => {
+          return input.split(',').reduce((acc, raw) => {
+            const chunk = raw.trim();
+            if (!chunk) return acc;
+            const separatorIndex = chunk.indexOf('=');
+            if (separatorIndex === -1) return acc;
+            const key = chunk.slice(0, separatorIndex).trim();
+            const value = chunk.slice(separatorIndex + 1).trim();
+            if (!key) return acc;
+            acc[key] = value;
+            return acc;
+          }, {} as Record<string, string>);
+        };
 
         const configureOptions: ConfigureCommandOptions = {
           mcpServerEndpoint: forwarded.mcpServerEndpoint,
@@ -126,18 +139,16 @@ export class UnifiedCommand {
           configureOptions.args = opts.args.split(',').map(arg => arg.trim()).filter(arg => arg.length > 0);
         }
         if (opts.env !== undefined) {
-          configureOptions.env = opts.env.split(',').reduce((acc, pair) => {
-            const [key, value] = pair.split('=');
-            if (key && value) acc[key.trim()] = value.trim();
-            return acc;
-          }, {} as Record<string, string>);
+          const parsedEnv = parseKeyValuePairs(opts.env);
+          if (Object.keys(parsedEnv).length > 0) {
+            configureOptions.env = parsedEnv;
+          }
         }
         if (opts.headers !== undefined) {
-          configureOptions.headers = opts.headers.split(',').reduce((acc, pair) => {
-            const [key, value] = pair.split('=');
-            if (key && value) acc[key.trim()] = value.trim();
-            return acc;
-          }, {} as Record<string, string>);
+          const parsedHeaders = parseKeyValuePairs(opts.headers);
+          if (Object.keys(parsedHeaders).length > 0) {
+            configureOptions.headers = parsedHeaders;
+          }
         }
         // Proxy flags forwarding
         if (opts.proxyRemoteUrl !== undefined) (configureOptions as any).proxyRemoteUrl = opts.proxyRemoteUrl;
@@ -148,7 +159,10 @@ export class UnifiedCommand {
           configureOptions.timeout = parseInt(opts.timeout, 10);
         }
         if (opts.dir !== undefined) {
-          configureOptions.configDir = opts.dir;
+          const trimmedDir = opts.dir.trim();
+          if (trimmedDir.length > 0) {
+            configureOptions.configDir = trimmedDir;
+          }
         }
         if (opts.backup !== undefined) {
           configureOptions.backup = opts.backup;
@@ -224,7 +238,12 @@ export class UnifiedCommand {
       .option('--dir <path>', 'Project directory to include project-level configs (Claude)')
       .action(async (opts: { format?: 'list'|'json'; agent?: string; problems?: boolean; dir?: string }) => {
         const statusOpts: any = { format: (opts.format as any) || 'list', agent: (opts.agent || ''), problems: !!opts.problems };
-        if (opts.dir !== undefined) statusOpts.dir = opts.dir;
+        if (opts.dir !== undefined) {
+          const trimmedDir = opts.dir.trim();
+          if (trimmedDir.length > 0) {
+            statusOpts.dir = trimmedDir;
+          }
+        }
         await executeStatusCommand(statusOpts);
       });
 

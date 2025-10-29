@@ -2,7 +2,7 @@
  * Banner utility for consistent ASCII art display across the CLI
  */
 import { readFileSync } from 'fs';
-import { join } from 'path';
+import { resolvePackagePath } from './packageRoot';
 
 // Main ALPH ASCII art banner
 export const ALPH_BANNER = `
@@ -106,7 +106,7 @@ export async function getWizardBanner(): Promise<string> {
  */
 export async function getAppVersion(): Promise<string> {
   try {
-    const pkgPath = join(__dirname, '../../package.json');
+    const pkgPath = resolvePackagePath('package.json');
     const raw = readFileSync(pkgPath, 'utf8');
     const pkg = JSON.parse(raw);
     return pkg.version || 'unknown';

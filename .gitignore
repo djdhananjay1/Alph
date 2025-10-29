@@ -65,6 +65,4 @@ tmp-e2e/
 node_modules
 
 #documents (none currently)
-
-#warp files
-WARP.md
+SolutionDesign.md

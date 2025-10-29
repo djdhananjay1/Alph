@@ -1,3 +1,12 @@
+## [1.0.2](https://github.com/Aqualia/Alph/compare/v1.0.1...v1.0.2) (2025-10-29)
+
+### Bug Fixes
+
+* ensure CLI metadata (`--version`, banner) resolves from the packaged root in all install contexts
+* tighten STDIO setup validation so `--transport stdio` requires an explicit `--command`
+* preserve full `key=value` data when parsing `--env`/`--headers` options in `alph setup`
+* restore `alph status --dir` project lookups for Claude/Cursor configurations
+
 ## [1.0.1](https://github.com/Aqualia/Alph/compare/v0.4.3...v1.0.1) (2025-09-30)
 
 ### Bug Fixes

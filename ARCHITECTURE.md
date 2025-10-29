@@ -7,10 +7,11 @@ This document describes the structure of the Alph CLI codebase and the primary e
 - `src/`
   - `index.ts`: CLI entrypoint that invokes `executeUnifiedCommand()`.
   - `commands/`
-    - `unified.ts`: Commander.js wiring. Subcommands: `setup`, `status`, `remove`. No root-level flags.
+    - `unified.ts`: Commander.js wiring. Subcommands: `setup`, `status`, `remove`, `proxy`. Global `--verbose` flag toggles structured debug logging via `ALPH_VERBOSE`.
     - `configure.ts`: Implements the `setup` flow (agent filtering, dry-run preview, confirmation, safe writes).
     - `status.ts`: Detection and redacted configuration reporting (table or JSON).
     - `interactive.ts`: Interactive wizard; pre-fills values and masks access keys.
+    - `proxy.ts`: Local ↔ remote MCP proxy helpers (`run`, `health`) built on Supergateway.
   - `agents/`
     - `registry.ts`: Detects available providers; orchestrates configure/validate across providers.
     - `provider.ts`: Shared provider types and interfaces.
@@ -33,8 +34,8 @@ This document describes the structure of the Alph CLI codebase and the primary e
 
 ### Unified command (`src/commands/unified.ts`)
 - Wires subcommands with Commander.js.
-- Subcommands: `setup`, `status`, `remove`.
-- No root-level flags; use explicit subcommands only.
+- Subcommands: `setup`, `status`, `remove`, `proxy run`, `proxy health`.
+- Provides a global `--verbose` switch (maps to `ALPH_VERBOSE=1`).
 - Provides normalization for forwarding options and optional argv fallback (`ALPH_ARGV_FALLBACK=1`).
 
 ### Setup (`src/commands/configure.ts`)
@@ -57,9 +58,10 @@ This document describes the structure of the Alph CLI codebase and the primary e
 
 ## Security and privacy
 
-- No telemetry/analytics; no network calls or subprocess execution in CLI code.
+- Core setup/status/remove flows are local-only and emit no telemetry by default; opt-in telemetry simply buffers anonymised counters in-memory.
 - Access keys are masked in all console output.
 - Safe file editing and rollback via `safeEdit.ts` and `backup.ts`.
+- Proxy commands spawn controlled subprocesses (`npx` or Docker) and only perform network access when explicitly invoked (e.g., `proxy health` fetch). Core setup/status/remove operations remain local-first.
 - See `SECURITY.md` for details.
 
 ## Environment
