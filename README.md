@@ -8,7 +8,6 @@
 
 <p align="center">
   <a href="https://www.npmjs.com/package/@aqualia/alph-cli"><img alt="npm" src="https://img.shields.io/npm/v/@aqualia/alph-cli"></a>
-  <a href="https://www.npmjs.com/package/@aqualia/alph-cli"><img alt="downloads" src="https://img.shields.io/npm/dm/@aqualia/alph-cli"></a>
   <a href="https://github.com/Aqualia/Alph"><img alt="GitHub stars" src="https://img.shields.io/github/stars/Aqualia/Alph?style=social"></a>
   <a href="./LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/License-MIT-green.svg"></a>
 </p>
