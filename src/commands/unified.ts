@@ -14,6 +14,7 @@ import { executeStatusCommand } from './status';
 import { executeRemoveCommand, RemoveCommandOptions } from './remove';
 import { startInteractiveConfig } from './interactive';
 import { proxyRun, proxyHealth } from './proxy';
+import { executeConnectCommand } from './connect';
 
 /**
  * Unified command implementation
@@ -291,6 +292,19 @@ export class UnifiedCommand {
         }
         
         await executeRemoveCommand(removeOptions);
+      });
+
+    // connect subcommand — starts the local WebSocket bridge for the web GUI
+    this.program
+      .command('connect')
+      .description('Start local bridge and open the Alph Web GUI in your browser')
+      .option('--port <number>', 'Bridge port (default: 3421)', '3421')
+      .option('--no-open', 'Do not auto-open the browser')
+      .action(async (opts: { port?: string; open?: boolean }) => {
+        await executeConnectCommand({
+          port: opts.port ? parseInt(opts.port, 10) : 3421,
+          noOpen: opts.open === false
+        });
       });
 
     // Root command action
