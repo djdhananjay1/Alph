@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import { supabase, supabaseReady } from './lib/supabase';
+import { supabase } from './lib/supabase';
 import type { Session } from '@supabase/supabase-js';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
@@ -17,34 +17,14 @@ function ProtectedRoute({ session, children }: { session: Session | null; childr
   return <>{children}</>;
 }
 
-function ConfigBanner() {
-  if (supabaseReady) return null;
-  return (
-    <div style={{
-      background: 'rgba(245,158,11,0.15)',
-      borderBottom: '1px solid rgba(245,158,11,0.3)',
-      padding: '10px 32px',
-      fontSize: '0.83rem',
-      color: '#f59e0b',
-      textAlign: 'center'
-    }}>
-      ⚠ Supabase not configured — auth is disabled. Add{' '}
-      <code style={{ fontFamily: 'monospace' }}>VITE_SUPABASE_URL</code> and{' '}
-      <code style={{ fontFamily: 'monospace' }}>VITE_SUPABASE_ANON_KEY</code>{' '}
-      to your GitHub repository secrets and redeploy.
-    </div>
-  );
-}
-
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setLoading(false);
-    }).catch(() => setLoading(false));
+    supabase.auth.getSession()
+      .then(({ data }) => { setSession(data.session); setLoading(false); })
+      .catch(() => setLoading(false));
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
     return () => subscription.unsubscribe();
@@ -59,7 +39,6 @@ export default function App() {
   return (
     <BrowserRouter basename="/Alph">
       <Nav session={session} />
-      <ConfigBanner />
       <Routes>
         <Route path="/" element={<Landing session={session} />} />
         <Route path="/login" element={session ? <Navigate to="/dashboard" /> : <Login />} />
