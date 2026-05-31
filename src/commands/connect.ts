@@ -32,7 +32,7 @@ export async function executeConnectCommand(options: ConnectCommandOptions = {})
   // Start bridge — exits process on port conflict
   const server = startBridgeServer(token, port);
 
-  const webUrl = `${WEB_UI_BASE}/#token=${token}&port=${port}`;
+  const webUrl = `${WEB_UI_BASE}/connect#token=${token}&port=${port}`;
 
   console.log('');
   console.log(line('─'));

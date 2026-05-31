@@ -46,7 +46,7 @@ export default function App() {
     <BrowserRouter basename="/Alph">
       <Nav session={session} />
       <Routes>
-        <Route path="/" element={session ? <Navigate to="/dashboard" replace /> : <Landing session={session} />} />
+        <Route path="/" element={<Landing session={session} />} />
         <Route path="/login" element={session ? <Navigate to="/dashboard" /> : <Login />} />
         <Route path="/register" element={session ? <Navigate to="/dashboard" /> : <Register />} />
         <Route path="/connect" element={<ProtectedRoute session={session}><Connect /></ProtectedRoute>} />
