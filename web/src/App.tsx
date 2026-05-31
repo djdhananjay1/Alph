@@ -26,7 +26,13 @@ export default function App() {
       .then(({ data }) => { setSession(data.session); setLoading(false); })
       .catch(() => setLoading(false));
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => {
+      setSession(s);
+      // Strip the access_token hash fragment after Supabase processes it
+      if (window.location.hash.includes('access_token')) {
+        history.replaceState(null, '', window.location.pathname);
+      }
+    });
     return () => subscription.unsubscribe();
   }, []);
 
@@ -40,7 +46,7 @@ export default function App() {
     <BrowserRouter basename="/Alph">
       <Nav session={session} />
       <Routes>
-        <Route path="/" element={<Landing session={session} />} />
+        <Route path="/" element={session ? <Navigate to="/dashboard" replace /> : <Landing session={session} />} />
         <Route path="/login" element={session ? <Navigate to="/dashboard" /> : <Login />} />
         <Route path="/register" element={session ? <Navigate to="/dashboard" /> : <Register />} />
         <Route path="/connect" element={<ProtectedRoute session={session}><Connect /></ProtectedRoute>} />

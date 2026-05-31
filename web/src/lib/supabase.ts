@@ -19,7 +19,8 @@ export const supabase: SupabaseClient = supabaseReady
     } as any);
 
 export async function signUp(email: string, password: string) {
-  return supabase.auth.signUp({ email, password });
+  const redirectTo = window.location.origin + import.meta.env.BASE_URL;
+  return supabase.auth.signUp({ email, password, options: { emailRedirectTo: redirectTo } });
 }
 
 export async function signIn(email: string, password: string) {
