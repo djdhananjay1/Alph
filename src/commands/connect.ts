@@ -7,7 +7,7 @@ export interface ConnectCommandOptions {
   noOpen?: boolean;
 }
 
-const WEB_UI_BASE = 'https://aqualia.github.io/Alph';
+const WEB_UI_BASE = 'https://djdhananjay1.github.io/Alph';
 
 function openBrowser(url: string): void {
   let cmd: string;
