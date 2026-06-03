@@ -11,13 +11,18 @@ function getOsHint(): string {
   return 'Linux';
 }
 
-function parseHash(): { token: string; port: number } | null {
-  const raw = window.location.hash.replace('#', '');
-  const p = new URLSearchParams(raw);
+type HashParams =
+  | { mode: 'local'; token: string; port: number }
+  | { mode: 'relay'; sessionId: string; relayUrl: string };
+
+function parseHash(): HashParams | null {
+  const p = new URLSearchParams(window.location.hash.replace('#', ''));
+  const sessionId = p.get('session');
+  const relayUrl  = p.get('relay');
+  if (sessionId && relayUrl) return { mode: 'relay', sessionId, relayUrl: decodeURIComponent(relayUrl) };
   const token = p.get('token');
-  const port = parseInt(p.get('port') ?? '3421', 10);
   if (!token) return null;
-  return { token, port };
+  return { mode: 'local', token, port: parseInt(p.get('port') ?? '3421', 10) };
 }
 
 export default function Connect() {
@@ -28,10 +33,13 @@ export default function Connect() {
   const [port, setPort]         = useState(3421);
   const nav = useNavigate();
 
-  // Auto-connect if token is in the URL hash
+  // Auto-connect if connection params are in the URL hash
   useEffect(() => {
     const params = parseHash();
-    if (params) {
+    if (!params) return;
+    if (params.mode === 'relay') {
+      doConnectRelay(params.sessionId, params.relayUrl);
+    } else {
       setToken(params.token);
       setPort(params.port);
       doConnect(params.token, params.port);
@@ -42,8 +50,19 @@ export default function Connect() {
     setStatus('connecting');
     setError('');
     try {
-      const info = await bridge.connect(t, p);
-      setConnInfo(info);
+      setConnInfo(await bridge.connect(t, p));
+      setStatus('connected');
+    } catch (err: any) {
+      setStatus('error');
+      setError(err.message);
+    }
+  };
+
+  const doConnectRelay = async (sessionId: string, relayUrl: string) => {
+    setStatus('connecting');
+    setError('');
+    try {
+      setConnInfo(await bridge.connectRelay(sessionId, relayUrl));
       setStatus('connected');
     } catch (err: any) {
       setStatus('error');

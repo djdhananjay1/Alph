@@ -15,6 +15,7 @@ import { executeRemoveCommand, RemoveCommandOptions } from './remove';
 import { startInteractiveConfig } from './interactive';
 import { proxyRun, proxyHealth } from './proxy';
 import { executeConnectCommand } from './connect';
+import { executeRelayCommand } from './relay';
 
 /**
  * Unified command implementation
@@ -299,12 +300,24 @@ export class UnifiedCommand {
       .command('connect')
       .description('Start local bridge and open the Alph Web GUI in your browser')
       .option('--port <number>', 'Bridge port (default: 3421)', '3421')
+      .option('--relay <url>',   'Use a relay server instead of localhost (e.g. wss://relay.example.com)')
       .option('--no-open', 'Do not auto-open the browser')
-      .action(async (opts: { port?: string; open?: boolean }) => {
-        await executeConnectCommand({
-          port: opts.port ? parseInt(opts.port, 10) : 3421,
-          noOpen: opts.open === false
-        });
+      .action(async (opts: { port?: string; relay?: string; open?: boolean }) => {
+        const connectOpts: import('./connect').ConnectCommandOptions = {
+          port:   opts.port ? parseInt(opts.port, 10) : 3421,
+          noOpen: opts.open === false,
+        };
+        if (opts.relay) connectOpts.relay = opts.relay;
+        await executeConnectCommand(connectOpts);
+      });
+
+    // relay subcommand — runs the relay server (deploy on a VPS)
+    this.program
+      .command('relay')
+      .description('Run the Alph relay server (deploy on a public VPS)')
+      .option('--port <number>', 'Relay port (default: 3422)', '3422')
+      .action(async (opts: { port?: string }) => {
+        await executeRelayCommand({ port: opts.port ? parseInt(opts.port, 10) : 3422 });
       });
 
     // Root command action
