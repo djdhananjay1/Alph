@@ -78,6 +78,8 @@ class BridgeClient {
       const { token, port } = JSON.parse(raw) as { token: string; port: number };
       return await this.connect(token, port);
     } catch {
+      // Stale or unreachable — clear so we don't retry on every page load
+      sessionStorage.removeItem(SESSION_KEY);
       return null;
     }
   }
