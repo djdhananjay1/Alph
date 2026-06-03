@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { bridge, type AgentInfo } from '../lib/bridge';
+import { useBridge } from '../lib/useBridge';
 
 export default function StatusPage() {
   const [agents, setAgents]   = useState<AgentInfo[]>([]);
   const [loading, setLoading] = useState(true);
+  const { connected, reconnecting } = useBridge();
 
   const load = async () => {
     setLoading(true);
@@ -11,7 +14,23 @@ export default function StatusPage() {
     finally { setLoading(false); }
   };
 
-  useEffect(() => { if (bridge.connected) load(); else setLoading(false); }, []);
+  useEffect(() => {
+    if (reconnecting) return;
+    if (connected) load(); else setLoading(false);
+  }, [connected, reconnecting]);
+
+  if (reconnecting) return (
+    <div className="page" style={{ textAlign: 'center' }}>
+      <div className="spinner" style={{ margin: '0 auto 16px' }} />
+      <p style={{ color: 'var(--text-2)', fontSize: '0.9rem' }}>Reconnecting to bridge…</p>
+    </div>
+  );
+
+  if (!connected) return (
+    <div className="page" style={{ textAlign: 'center', maxWidth: 480 }}>
+      <p style={{ color: 'var(--text-2)' }}>Bridge not connected. <Link to="/connect" style={{ color: 'var(--primary)' }}>Connect first</Link>.</p>
+    </div>
+  );
 
   return (
     <div className="page">

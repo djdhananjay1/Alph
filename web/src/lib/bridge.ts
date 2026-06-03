@@ -25,14 +25,16 @@ export type ConnectedInfo = {
   hostname: string;
 };
 
+const SESSION_KEY = 'alph_bridge';
+
 class BridgeClient {
   private ws: WebSocket | null = null;
   private handlers = new Map<string, MsgHandler[]>();
   private _connected = false;
+  private _connInfo: ConnectedInfo | null = null;
 
-  get connected() {
-    return this._connected;
-  }
+  get connected() { return this._connected; }
+  get connInfo()  { return this._connInfo; }
 
   connect(token: string, port = 3421): Promise<ConnectedInfo> {
     return new Promise((resolve, reject) => {
@@ -45,7 +47,10 @@ class BridgeClient {
         const msg = JSON.parse(e.data);
         if (msg.type === 'connected') {
           this._connected = true;
-          resolve(msg.payload as ConnectedInfo);
+          this._connInfo = msg.payload as ConnectedInfo;
+          // Persist so any page can silently reconnect after navigation / refresh
+          sessionStorage.setItem(SESSION_KEY, JSON.stringify({ token, port }));
+          resolve(this._connInfo);
         }
         this.emit(msg.type, msg.payload);
       };
@@ -57,16 +62,32 @@ class BridgeClient {
 
       ws.onclose = (e) => {
         this._connected = false;
+        this._connInfo = null;
         if (e.code === 4001) reject(new Error('Invalid session token'));
         this.emit('disconnected', {});
       };
     });
   }
 
+  /** Silently reconnect using sessionStorage credentials. Returns info on success, null if none saved or bridge is down. */
+  async tryReconnect(): Promise<ConnectedInfo | null> {
+    if (this._connected) return this._connInfo;
+    try {
+      const raw = sessionStorage.getItem(SESSION_KEY);
+      if (!raw) return null;
+      const { token, port } = JSON.parse(raw) as { token: string; port: number };
+      return await this.connect(token, port);
+    } catch {
+      return null;
+    }
+  }
+
   disconnect() {
+    sessionStorage.removeItem(SESSION_KEY);
     this.ws?.close();
     this.ws = null;
     this._connected = false;
+    this._connInfo = null;
   }
 
   send(msg: object) {

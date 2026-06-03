@@ -1,18 +1,16 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { bridge, type AgentInfo } from '../lib/bridge';
+import { useBridge } from '../lib/useBridge';
 
 export default function Dashboard() {
-  const [agents, setAgents]     = useState<AgentInfo[]>([]);
-  const [loading, setLoading]   = useState(false);
-  const [connected, setConnected] = useState(bridge.connected);
+  const [agents, setAgents]   = useState<AgentInfo[]>([]);
+  const [loading, setLoading] = useState(false);
+  const { connected, reconnecting } = useBridge();
 
   useEffect(() => {
-    setConnected(bridge.connected);
-    if (bridge.connected) loadAgents();
-    const off = bridge.on('disconnected', () => setConnected(false));
-    return () => off();
-  }, []);
+    if (connected) loadAgents();
+  }, [connected]);
 
   const loadAgents = async () => {
     setLoading(true);
@@ -26,11 +24,18 @@ export default function Dashboard() {
 
   const detected = agents.filter(a => a.detected);
 
+  if (reconnecting) return (
+    <div className="page" style={{ textAlign: 'center', maxWidth: 480 }}>
+      <div className="spinner" style={{ margin: '0 auto 16px' }} />
+      <p style={{ color: 'var(--text-2)', fontSize: '0.9rem' }}>Reconnecting to bridge…</p>
+    </div>
+  );
+
   if (!connected) return (
     <div className="page" style={{ textAlign: 'center', maxWidth: 480 }}>
       <div style={{ fontSize: '2.5rem', marginBottom: 16 }}>🔌</div>
       <h2 style={{ marginBottom: 10 }}>Bridge not connected</h2>
-      <p style={{ color: 'var(--muted)', marginBottom: 24, fontSize: '0.9rem' }}>
+      <p style={{ color: 'var(--text-2)', marginBottom: 24, fontSize: '0.9rem' }}>
         Run <code className="mono">alph connect</code> on your machine first.
       </p>
       <Link to="/connect" className="btn btn-primary">Connect now</Link>

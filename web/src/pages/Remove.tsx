@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { bridge, type AgentInfo, type LogEntry } from '../lib/bridge';
+import { useBridge } from '../lib/useBridge';
 
 export default function Remove() {
   const [agents, setAgents]     = useState<AgentInfo[]>([]);
@@ -11,14 +13,17 @@ export default function Remove() {
   const [logs, setLogs]         = useState<LogEntry[]>([]);
   const [result, setResult]     = useState<{ success: boolean; message?: string; error?: string } | null>(null);
 
+  const { connected, reconnecting } = useBridge();
+
   useEffect(() => {
-    if (bridge.connected) {
+    if (reconnecting) return;
+    if (connected) {
       bridge.detectAgents().then(a => {
         setAgents(a.filter(x => x.detected));
         setLoading(false);
       });
     } else setLoading(false);
-  }, []);
+  }, [connected, reconnecting]);
 
   const toggle = (name: string) =>
     setSelected(s => s.includes(name) ? s.filter(x => x !== name) : [...s, name]);
@@ -34,6 +39,19 @@ export default function Remove() {
     setResult(res);
     setApplying(false);
   };
+
+  if (reconnecting) return (
+    <div className="page" style={{ textAlign: 'center' }}>
+      <div className="spinner" style={{ margin: '0 auto 16px' }} />
+      <p style={{ color: 'var(--text-2)', fontSize: '0.9rem' }}>Reconnecting to bridge…</p>
+    </div>
+  );
+
+  if (!connected) return (
+    <div className="page" style={{ textAlign: 'center', maxWidth: 480 }}>
+      <p style={{ color: 'var(--text-2)' }}>Bridge not connected. <Link to="/connect" style={{ color: 'var(--primary)' }}>Connect first</Link>.</p>
+    </div>
+  );
 
   return (
     <div className="page" style={{ maxWidth: 640 }}>

@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { bridge, type AgentInfo, type LogEntry } from '../lib/bridge';
+import { useBridge } from '../lib/useBridge';
 
 type Transport = 'http' | 'sse' | 'stdio';
 type Step = 'agents' | 'server' | 'preview' | 'applying' | 'done';
@@ -18,14 +20,16 @@ export default function Setup() {
 
   const [logs, setLogs]   = useState<LogEntry[]>([]);
   const [result, setResult] = useState<{ success: boolean; message?: string; error?: string } | null>(null);
+  const { connected, reconnecting } = useBridge();
 
   useEffect(() => {
+    if (!connected) return;
     bridge.detectAgents().then(a => {
       setAgents(a);
       setSelected(a.filter(x => x.detected).map(x => x.name));
       setLoading(false);
     }).catch(() => setLoading(false));
-  }, []);
+  }, [connected]);
 
   const toggle = (name: string) =>
     setSelected(s => s.includes(name) ? s.filter(x => x !== name) : [...s, name]);
@@ -51,9 +55,16 @@ export default function Setup() {
     setStep('done');
   };
 
-  if (!bridge.connected) return (
+  if (reconnecting) return (
+    <div className="page" style={{ textAlign: 'center' }}>
+      <div className="spinner" style={{ margin: '0 auto 16px' }} />
+      <p style={{ color: 'var(--text-2)', fontSize: '0.9rem' }}>Reconnecting to bridge…</p>
+    </div>
+  );
+
+  if (!connected) return (
     <div className="page" style={{ textAlign: 'center', maxWidth: 480 }}>
-      <p style={{ color: 'var(--muted)' }}>Bridge not connected. <a href="/Alph/connect" style={{ color: 'var(--primary)' }}>Connect first</a>.</p>
+      <p style={{ color: 'var(--text-2)' }}>Bridge not connected. <Link to="/connect" style={{ color: 'var(--primary)' }}>Connect first</Link>.</p>
     </div>
   );
 
