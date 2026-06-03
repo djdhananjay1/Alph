@@ -27,10 +27,6 @@ export type ConnectedInfo = {
 
 const SESSION_KEY = 'alph_bridge';
 
-type SavedSession =
-  | { mode: 'local';  token: string; port: number }
-  | { mode: 'relay';  sessionId: string; relayUrl: string };
-
 class BridgeClient {
   private ws: WebSocket | null = null;
   private handlers = new Map<string, MsgHandler[]>();
@@ -40,69 +36,49 @@ class BridgeClient {
   get connected() { return this._connected; }
   get connInfo()  { return this._connInfo; }
 
-  // ── Local WebSocket (original) ────────────────────────────────────────────
-
   connect(token: string, port = 3421): Promise<ConnectedInfo> {
     return new Promise((resolve, reject) => {
       const ws = new WebSocket(`ws://127.0.0.1:${port}?token=${token}`);
-      this._attach(ws, resolve, reject);
-      ws.onopen = () => {
-        sessionStorage.setItem(SESSION_KEY, JSON.stringify({ mode: 'local', token, port } satisfies SavedSession));
+      this.ws = ws;
+
+      ws.onopen = () => {};
+
+      ws.onmessage = (e) => {
+        const msg = JSON.parse(e.data);
+        if (msg.type === 'connected') {
+          this._connected = true;
+          this._connInfo = msg.payload as ConnectedInfo;
+          // Persist so any page can silently reconnect after navigation / refresh
+          sessionStorage.setItem(SESSION_KEY, JSON.stringify({ token, port }));
+          resolve(this._connInfo);
+        }
+        this.emit(msg.type, msg.payload);
+      };
+
+      ws.onerror = () => {
+        this._connected = false;
+        reject(new Error('Could not reach bridge. Is "alph connect" running?'));
+      };
+
+      ws.onclose = (e) => {
+        this._connected = false;
+        this._connInfo = null;
+        if (e.code === 4001) reject(new Error('Invalid session token'));
+        this.emit('disconnected', {});
       };
     });
   }
 
-  // ── Relay WebSocket (new) ─────────────────────────────────────────────────
-
-  connectRelay(sessionId: string, relayUrl: string): Promise<ConnectedInfo> {
-    return new Promise((resolve, reject) => {
-      const ws = new WebSocket(`${relayUrl}/browser?session=${sessionId}`);
-      this._attach(ws, resolve, reject);
-      ws.onopen = () => {
-        sessionStorage.setItem(SESSION_KEY, JSON.stringify({ mode: 'relay', sessionId, relayUrl } satisfies SavedSession));
-      };
-    });
-  }
-
-  // ── Shared WebSocket wiring ───────────────────────────────────────────────
-
-  private _attach(ws: WebSocket, resolve: (v: ConnectedInfo) => void, reject: (e: Error) => void) {
-    this.ws = ws;
-    ws.onmessage = (e) => {
-      const msg = JSON.parse(e.data);
-      if (msg.type === 'connected') {
-        this._connected = true;
-        this._connInfo  = msg.payload as ConnectedInfo;
-        resolve(this._connInfo);
-      }
-      this.emit(msg.type, msg.payload);
-    };
-    ws.onerror = () => {
-      this._connected = false;
-      reject(new Error('Could not reach bridge. Is "alph connect" running?'));
-    };
-    ws.onclose = (e) => {
-      this._connected = false;
-      this._connInfo  = null;
-      if (e.code === 4001) reject(new Error('Invalid session token'));
-      this.emit('disconnected', {});
-    };
-  }
-
-  // ── Session persistence ───────────────────────────────────────────────────
-
+  /** Silently reconnect using sessionStorage credentials. Returns info on success, null if none saved or bridge is down. */
   async tryReconnect(): Promise<ConnectedInfo | null> {
     if (this._connected) return this._connInfo;
     try {
       const raw = sessionStorage.getItem(SESSION_KEY);
       if (!raw) return null;
-      const saved = JSON.parse(raw) as SavedSession;
-      if (saved.mode === 'relay') {
-        return await this.connectRelay(saved.sessionId, saved.relayUrl);
-      } else {
-        return await this.connect(saved.token, saved.port);
-      }
+      const { token, port } = JSON.parse(raw) as { token: string; port: number };
+      return await this.connect(token, port);
     } catch {
+      // Stale or unreachable — clear so we don't retry on every page load
       sessionStorage.removeItem(SESSION_KEY);
       return null;
     }
@@ -113,7 +89,7 @@ class BridgeClient {
     this.ws?.close();
     this.ws = null;
     this._connected = false;
-    this._connInfo  = null;
+    this._connInfo = null;
   }
 
   send(msg: object) {
