@@ -1,24 +1,22 @@
 import { randomUUID } from 'crypto';
 import { exec } from 'child_process';
 import { startBridgeServer } from '../bridge/server';
+import { startSupabaseRelay } from '../relay/supabase-relay';
 
 export interface ConnectCommandOptions {
   port?: number;
   noOpen?: boolean;
+  noRelay?: boolean;
 }
 
 const WEB_UI_BASE = 'https://djdhananjay1.github.io/Alph';
 
 function openBrowser(url: string): void {
-  let cmd: string;
-  if (process.platform === 'win32') {
-    cmd = `start "" "${url}"`;
-  } else if (process.platform === 'darwin') {
-    cmd = `open "${url}"`;
-  } else {
-    cmd = `xdg-open "${url}"`;
-  }
-  exec(cmd, () => {});
+  const cmds: Partial<Record<string, string>> = {
+    win32:  `start "" "${url}"`,
+    darwin: `open "${url}"`,
+  };
+  exec(cmds[process.platform] ?? `xdg-open "${url}"`, () => {});
 }
 
 function line(char = '─', len = 52): string {
@@ -27,21 +25,27 @@ function line(char = '─', len = 52): string {
 
 export async function executeConnectCommand(options: ConnectCommandOptions = {}): Promise<void> {
   const token = randomUUID();
-  const port = options.port ?? 3421;
+  const port  = options.port ?? 3421;
 
-  // Start bridge — exits process on port conflict
   const server = startBridgeServer(token, port);
+  const relay  = options.noRelay ? { ready: false, close: async () => {} } : startSupabaseRelay(token);
 
   const webUrl = `${WEB_UI_BASE}/connect#token=${token}&port=${port}`;
 
   console.log('');
-  console.log(line('─'));
+  console.log(line());
   console.log('  Alph Bridge — ready');
-  console.log(line('─'));
-  console.log(`  Bridge   ws://127.0.0.1:${port}`);
+  console.log(line());
+  console.log(`  Local    ws://127.0.0.1:${port}`);
+  if (relay.ready) {
+    console.log('  Relay    Supabase (E2E encrypted)');
+  }
   console.log(`  Token    ${token}`);
   console.log(`  Web UI   ${webUrl}`);
-  console.log(line('─'));
+  console.log(line());
+  if (!relay.ready && !options.noRelay) {
+    console.log('  Tip: set ALPH_SUPABASE_URL + ALPH_SUPABASE_ANON_KEY for encrypted relay');
+  }
   console.log('  Opening browser... Press Ctrl+C to stop.');
   console.log('');
 
@@ -49,11 +53,11 @@ export async function executeConnectCommand(options: ConnectCommandOptions = {})
     openBrowser(webUrl);
   }
 
-  // Block until SIGINT/SIGTERM
   await new Promise<void>(resolve => {
-    const shutdown = () => {
+    const shutdown = async () => {
       console.log('\n  Bridge stopped.');
       server.close();
+      await relay.close();
       resolve();
     };
     process.once('SIGINT', shutdown);

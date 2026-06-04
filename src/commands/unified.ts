@@ -300,10 +300,12 @@ export class UnifiedCommand {
       .description('Start local bridge and open the Alph Web GUI in your browser')
       .option('--port <number>', 'Bridge port (default: 3421)', '3421')
       .option('--no-open', 'Do not auto-open the browser')
-      .action(async (opts: { port?: string; open?: boolean }) => {
+      .option('--no-relay', 'Disable Supabase encrypted relay (local bridge only)')
+      .action(async (opts: { port?: string; open?: boolean; relay?: boolean }) => {
         await executeConnectCommand({
-          port: opts.port ? parseInt(opts.port, 10) : 3421,
-          noOpen: opts.open === false
+          port:    opts.port ? parseInt(opts.port, 10) : 3421,
+          noOpen:  opts.open === false,
+          noRelay: opts.relay === false
         });
       });
 

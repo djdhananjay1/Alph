@@ -1,5 +1,5 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
 import { supabase } from './lib/supabase';
 import type { Session } from '@supabase/supabase-js';
 import Landing from './pages/Landing';
@@ -11,6 +11,27 @@ import Setup from './pages/Setup';
 import StatusPage from './pages/Status';
 import Remove from './pages/Remove';
 import Nav from './components/Nav';
+
+// Listens on BroadcastChannel for take_session events from other tabs.
+// When received, claims the session and navigates to /connect so the
+// new session is handled here instead of opening an extra tab.
+function SessionTakeover() {
+  const navigate = useNavigate();
+  const tabId    = useRef(Math.random().toString(36).slice(2));
+
+  useEffect(() => {
+    const bc = new BroadcastChannel('alph_connect');
+    bc.onmessage = (e) => {
+      if (e.data.type === 'take_session' && e.data.tabId !== tabId.current) {
+        bc.postMessage({ type: 'claim', tabId: tabId.current });
+        navigate(`/connect?claimed=1#token=${e.data.token}&port=${e.data.port}`);
+      }
+    };
+    return () => bc.close();
+  }, [navigate]);
+
+  return null;
+}
 
 function ProtectedRoute({ session, children }: { session: Session | null; children: React.ReactNode }) {
   if (!session) return <Navigate to="/login" replace />;
@@ -28,7 +49,6 @@ export default function App() {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => {
       setSession(s);
-      // Strip the access_token hash fragment after Supabase processes it
       if (window.location.hash.includes('access_token')) {
         history.replaceState(null, '', window.location.pathname);
       }
@@ -44,6 +64,7 @@ export default function App() {
 
   return (
     <BrowserRouter basename="/Alph">
+      <SessionTakeover />
       <Nav session={session} />
       <Routes>
         <Route path="/" element={<Landing session={session} />} />
